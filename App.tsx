@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { 
@@ -6,9 +5,9 @@ import {
   Menu, 
   X, 
   Bell,
-  Search,
   Plus,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { NAV_ITEMS } from './constants';
 import { User, UserRole } from './types';
@@ -116,27 +115,46 @@ const PageWrapper: React.FC<{ children: React.ReactNode, title: string, toggleSi
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   useEffect(() => {
-    // Escutar mudanças no Firebase Auth
-    const unsubscribe = authService.subscribeToAuthChanges((firebaseUser) => {
-      if (firebaseUser) {
-        setCurrentUser({
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Gestor',
-          email: firebaseUser.email || '',
-          role: UserRole.ADMIN // Por padrão admin para o dono do projeto, depois implementamos roles no Firestore
-        });
-      } else {
-        setCurrentUser(null);
+    // Timeout de segurança: se o Firebase não responder em 8s, libera o loading para mostrar a tela de login
+    const safetyTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn("Nexus: Firebase demorou muito para responder. Liberando loading...");
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    }, 8000);
 
-    return () => unsubscribe();
+    try {
+      const unsubscribe = authService.subscribeToAuthChanges((firebaseUser) => {
+        clearTimeout(safetyTimeout);
+        if (firebaseUser) {
+          setCurrentUser({
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Gestor',
+            email: firebaseUser.email || '',
+            role: UserRole.ADMIN
+          });
+        } else {
+          setCurrentUser(null);
+        }
+        setLoading(false);
+      });
+
+      return () => {
+        unsubscribe();
+        clearTimeout(safetyTimeout);
+      };
+    } catch (err) {
+      console.error("Erro ao inicializar Auth:", err);
+      setError("Falha na conexão com o servidor de autenticação.");
+      setLoading(false);
+      clearTimeout(safetyTimeout);
+    }
   }, []);
 
   const handleLogout = async () => {
@@ -147,7 +165,23 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center text-gray-500">
         <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
-        <p className="text-sm font-medium tracking-widest uppercase">Inicializando Nexus...</p>
+        <p className="text-sm font-medium tracking-widest uppercase animate-pulse">Sincronizando Nexus...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center text-rose-400 p-6 text-center">
+        <AlertTriangle size={48} className="mb-4" />
+        <h2 className="text-xl font-bold mb-2">Erro Crítico</h2>
+        <p className="max-w-md opacity-80">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-6 px-6 py-2 bg-gray-800 rounded-lg text-white font-bold hover:bg-gray-700 transition-colors"
+        >
+          Tentar Novamente
+        </button>
       </div>
     );
   }

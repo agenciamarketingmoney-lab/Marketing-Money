@@ -1,9 +1,7 @@
-
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
-// Configurações reais do projeto marketing-money fornecidas pelo usuário
 const firebaseConfig = {
   apiKey: "AIzaSyAGiddLIYXwso7GCbykvyom3nhmZ0cCWfU",
   authDomain: "marketing-money.firebaseapp.com",
@@ -14,9 +12,8 @@ const firebaseConfig = {
   measurementId: "G-TS5K8YP6T8"
 };
 
-// Inicializa o Firebase
-const app = initializeApp(firebaseConfig);
+// Singleton pattern to ensure only one instance is created
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Exporta os serviços para uso em toda a aplicação
 export const db = getFirestore(app);
 export const auth = getAuth(app);
