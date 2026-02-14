@@ -23,14 +23,15 @@ export const dbService = {
       });
       return { id: docRef.id, ...company };
     } catch (e: any) {
-      console.error("Firestore addCompany Error: ", e);
-      throw e;
+      console.error("Erro no dbService (addCompany):", e);
+      throw e; // Lança para ser capturado no CRM.tsx
     }
   },
 
   async getCompanies(): Promise<Company[]> {
     try {
-      const q = query(collection(db, "companies"), orderBy("name", "asc"));
+      const colRef = collection(db, "companies");
+      const q = query(colRef, orderBy("name", "asc"));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) return [];
@@ -40,8 +41,7 @@ export const dbService = {
         ...doc.data()
       })) as Company[];
     } catch (e) {
-      console.error("Firestore getCompanies Error: ", e);
-      // Se a API estiver desativada, retornamos uma lista vazia em vez de travar
+      console.error("Erro no dbService (getCompanies):", e);
       return [];
     }
   },
@@ -60,7 +60,7 @@ export const dbService = {
         ...doc.data()
       })) as Campaign[];
     } catch (e) {
-      console.error("Erro ao buscar campanhas: ", e);
+      console.error("Erro ao buscar campanhas:", e);
       return [];
     }
   },
@@ -77,7 +77,7 @@ export const dbService = {
       const data = querySnapshot.docs.map(doc => doc.data() as DailyMetrics);
       return data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     } catch (e) {
-      console.error("Erro ao buscar métricas: ", e);
+      console.error("Erro ao buscar métricas:", e);
       return [];
     }
   },
@@ -96,7 +96,7 @@ export const dbService = {
         ...doc.data()
       })) as Task[];
     } catch (e) {
-      console.error("Erro ao buscar tarefas: ", e);
+      console.error("Erro ao buscar tarefas:", e);
       return [];
     }
   },
