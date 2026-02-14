@@ -9,7 +9,9 @@ import {
   Calendar,
   X,
   Loader2,
-  Users
+  Users,
+  AlertTriangle,
+  ExternalLink as LinkIcon
 } from 'lucide-react';
 import { dbService } from '../services/dbService';
 import { Company } from '../types';
@@ -19,6 +21,7 @@ const CRM: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   
   const [newCompany, setNewCompany] = useState({
     name: '',
@@ -29,9 +32,14 @@ const CRM: React.FC = () => {
 
   const fetchCompanies = async () => {
     setLoading(true);
-    const data = await dbService.getCompanies();
-    setCompanies(data);
-    setLoading(false);
+    try {
+      const data = await dbService.getCompanies();
+      setCompanies(data);
+    } catch (error) {
+      console.error("Erro ao buscar clientes:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -41,13 +49,31 @@ const CRM: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setApiError(null);
+
+    // Timeout de segurança para evitar que o botão fique carregando infinitamente se o Firestore estiver "offline"
+    const timeout = setTimeout(() => {
+      if (isSaving) {
+        setIsSaving(false);
+        setApiError("O servidor está demorando muito para responder. Verifique se o Firestore está ativo no seu console Firebase.");
+      }
+    }, 10000);
+
     try {
       await dbService.addCompany(newCompany);
+      clearTimeout(timeout);
       await fetchCompanies();
       setIsModalOpen(false);
       setNewCompany({ name: '', plan: 'Basic', activeCampaigns: 0, startDate: new Date().toISOString().split('T')[0] });
-    } catch (error) {
-      alert("Erro ao salvar no Firestore.");
+    } catch (error: any) {
+      clearTimeout(timeout);
+      console.error("Erro completo:", error);
+      
+      if (error.message?.includes("API has not been used") || error.message?.includes("disabled")) {
+        setApiError("A API do Firestore está desativada para este projeto. Clique no link abaixo para ativar no Google Cloud Console.");
+      } else {
+        setApiError("Erro ao conectar com o banco de dados. Tente novamente em instantes.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -61,7 +87,10 @@ const CRM: React.FC = () => {
           <p className="text-sm text-gray-500">{companies.length} clientes registrados</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setApiError(null);
+            setIsModalOpen(true);
+          }}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center space-x-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
         >
           <UserPlus size={18} />
@@ -172,6 +201,25 @@ const CRM: React.FC = () => {
               </button>
             </div>
             <form onSubmit={handleSave} className="p-8 space-y-6">
+              {apiError && (
+                <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl flex flex-col space-y-3">
+                  <div className="flex items-start space-x-3 text-rose-400">
+                    <AlertTriangle size={20} className="shrink-0 mt-0.5" />
+                    <p className="text-xs font-medium leading-relaxed">{apiError}</p>
+                  </div>
+                  {apiError.includes("API") && (
+                    <a 
+                      href="https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=marketing-money" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center uppercase tracking-widest pl-8"
+                    >
+                      Ativar Agora no Console <LinkIcon size={12} className="ml-1" />
+                    </a>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="block text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest ml-1">Razão Social / Nome Fantasia</label>
                 <input 
@@ -180,7 +228,7 @@ const CRM: React.FC = () => {
                   value={newCompany.name}
                   onChange={e => setNewCompany({...newCompany, name: e.target.value})}
                   className="w-full bg-gray-900 border border-gray-800 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white transition-all"
-                  placeholder="Ex: Apple Brasil LTDA"
+                  placeholder="Ex: Grupo Cunha"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -210,9 +258,14 @@ const CRM: React.FC = () => {
                 <button 
                   disabled={isSaving}
                   type="submit" 
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-800 disabled:text-gray-500 text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center space-x-2 shadow-xl shadow-indigo-600/20"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-800 disabled:text-gray-500 text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center space-x-2 shadow-xl shadow-indigo-600/20 active:scale-95"
                 >
-                  {isSaving ? <Loader2 className="animate-spin" size={20} /> : <span>Confirmar Cadastro Nexus</span>}
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} />
+                      <span className="ml-2">Sincronizando...</span>
+                    </>
+                  ) : <span>Confirmar Cadastro Nexus</span>}
                 </button>
               </div>
             </form>

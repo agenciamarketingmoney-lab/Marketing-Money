@@ -16,13 +16,14 @@ export const dbService = {
   // Empresas / Clientes
   async addCompany(company: Omit<Company, 'id'>) {
     try {
-      const docRef = await addDoc(collection(db, "companies"), {
+      const colRef = collection(db, "companies");
+      const docRef = await addDoc(colRef, {
         ...company,
         createdAt: serverTimestamp()
       });
       return { id: docRef.id, ...company };
-    } catch (e) {
-      console.error("Erro ao adicionar empresa: ", e);
+    } catch (e: any) {
+      console.error("Firestore addCompany Error: ", e);
       throw e;
     }
   },
@@ -31,12 +32,16 @@ export const dbService = {
     try {
       const q = query(collection(db, "companies"), orderBy("name", "asc"));
       const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) return [];
+      
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Company[];
     } catch (e) {
-      console.error("Erro ao buscar empresas: ", e);
+      console.error("Firestore getCompanies Error: ", e);
+      // Se a API estiver desativada, retornamos uma lista vazia em vez de travar
       return [];
     }
   },
@@ -70,7 +75,6 @@ export const dbService = {
       
       const querySnapshot = await getDocs(q);
       const data = querySnapshot.docs.map(doc => doc.data() as DailyMetrics);
-      // Re-ordenar para o gráfico (data ascendente)
       return data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     } catch (e) {
       console.error("Erro ao buscar métricas: ", e);
@@ -98,10 +102,15 @@ export const dbService = {
   },
 
   async addTask(task: Omit<Task, 'id'>) {
-    const docRef = await addDoc(collection(db, "tasks"), {
-      ...task,
-      createdAt: serverTimestamp()
-    });
-    return { id: docRef.id, ...task };
+    try {
+      const docRef = await addDoc(collection(db, "tasks"), {
+        ...task,
+        createdAt: serverTimestamp()
+      });
+      return { id: docRef.id, ...task };
+    } catch (e) {
+      console.error("Erro ao adicionar tarefa:", e);
+      throw e;
+    }
   }
 };
