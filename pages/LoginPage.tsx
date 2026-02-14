@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Mail, Lock, Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
 import { authService } from '../services/authService';
 
 const LoginPage: React.FC = () => {
@@ -16,7 +16,6 @@ const LoginPage: React.FC = () => {
     
     try {
       await authService.login(email, password);
-      // O App.tsx vai detectar a mudança e redirecionar
     } catch (err: any) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError('E-mail ou senha incorretos.');
@@ -28,9 +27,15 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  // Função para facilitar o teste do usuário sem precisar cadastrar no Firebase agora
+  const handleDemoLogin = () => {
+    setEmail('alexandre@agencianexus.com');
+    setPassword('demo123456');
+    setError('Nota: Para entrar, este e-mail deve estar criado no seu console Firebase. Use o botão abaixo para simular se desejar.');
+  };
+
   return (
     <div className="min-h-screen bg-[#030712] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Elementos Decorativos de Fundo */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 rounded-full blur-[120px]"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px]"></div>
 
@@ -46,7 +51,7 @@ const LoginPage: React.FC = () => {
         <div className="bg-[#111827] border border-gray-800 rounded-3xl p-8 shadow-2xl">
           <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 text-sm p-4 rounded-xl text-center">
+              <div className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs p-3 rounded-xl text-center leading-relaxed">
                 {error}
               </div>
             )}
@@ -81,14 +86,6 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-1">
-              <label className="flex items-center space-x-2 cursor-pointer group">
-                <input type="checkbox" className="w-4 h-4 bg-gray-900 border-gray-800 rounded text-indigo-600 focus:ring-0" />
-                <span className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">Lembrar de mim</span>
-              </label>
-              <a href="#" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold">Esqueceu a senha?</a>
-            </div>
-
             <button 
               disabled={loading}
               type="submit" 
@@ -105,10 +102,20 @@ const LoginPage: React.FC = () => {
             </button>
           </form>
 
+          <div className="mt-6 flex flex-col space-y-3">
+            <button 
+              onClick={handleDemoLogin}
+              className="w-full bg-gray-800/50 hover:bg-gray-800 text-gray-300 text-xs font-semibold py-3 rounded-xl border border-gray-700 transition-all flex items-center justify-center space-x-2"
+            >
+              <Zap size={14} className="text-amber-500" />
+              <span>Usar Acessos Recomendados</span>
+            </button>
+          </div>
+
           <div className="mt-8 pt-6 border-t border-gray-800 text-center">
             <p className="text-sm text-gray-500">
               Ainda não tem acesso? <br/> 
-              <span className="text-gray-300 font-semibold">Fale com o Administrador</span>
+              <span className="text-gray-300 font-semibold">Fale com Alexandre Silva (Admin)</span>
             </p>
           </div>
         </div>

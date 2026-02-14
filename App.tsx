@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { 
@@ -121,23 +122,22 @@ const App: React.FC = () => {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   useEffect(() => {
-    // Timeout de segurança: se o Firebase não responder em 8s, libera o loading para mostrar a tela de login
+    // Timeout de segurança
     const safetyTimeout = setTimeout(() => {
       if (loading) {
-        console.warn("Nexus: Firebase demorou muito para responder. Liberando loading...");
         setLoading(false);
       }
     }, 8000);
 
     try {
-      const unsubscribe = authService.subscribeToAuthChanges((firebaseUser) => {
+      const unsubscribe = authService.subscribeToAuthChanges((user) => {
         clearTimeout(safetyTimeout);
-        if (firebaseUser) {
+        if (user) {
           setCurrentUser({
-            id: firebaseUser.uid,
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Gestor',
-            email: firebaseUser.email || '',
-            role: UserRole.ADMIN
+            id: user.uid,
+            name: user.displayName || user.email?.split('@')[0] || 'Alexandre Silva',
+            email: user.email || '',
+            role: user.email === 'alexandre@agencianexus.com' ? UserRole.ADMIN : UserRole.CLIENT
           });
         } else {
           setCurrentUser(null);
@@ -150,7 +150,6 @@ const App: React.FC = () => {
         clearTimeout(safetyTimeout);
       };
     } catch (err) {
-      console.error("Erro ao inicializar Auth:", err);
       setError("Falha na conexão com o servidor de autenticação.");
       setLoading(false);
       clearTimeout(safetyTimeout);
