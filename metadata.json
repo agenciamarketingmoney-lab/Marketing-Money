@@ -1,0 +1,8 @@
+{
+  "name": "Copy of Nexus Marketing Intelligence",
+  "description": "A premium marketing agency management platform featuring CRM, BI dashboards, AI insights via Gemini, and project management.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
