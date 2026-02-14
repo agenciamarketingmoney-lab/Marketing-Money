@@ -8,9 +8,9 @@ import {
   Mail,
   Calendar,
   X,
-  Loader2
+  Loader2,
+  Users
 } from 'lucide-react';
-import { MOCK_COMPANIES } from '../services/mockData';
 import { dbService } from '../services/dbService';
 import { Company } from '../types';
 
@@ -30,8 +30,7 @@ const CRM: React.FC = () => {
   const fetchCompanies = async () => {
     setLoading(true);
     const data = await dbService.getCompanies();
-    // Se não houver dados no Firebase, usamos o mock para não ficar vazio no teste inicial
-    setCompanies(data.length > 0 ? data : MOCK_COMPANIES);
+    setCompanies(data);
     setLoading(false);
   };
 
@@ -48,7 +47,7 @@ const CRM: React.FC = () => {
       setIsModalOpen(false);
       setNewCompany({ name: '', plan: 'Basic', activeCampaigns: 0, startDate: new Date().toISOString().split('T')[0] });
     } catch (error) {
-      alert("Erro ao salvar. Verifique se configurou o Firebase corretamente no arquivo lib/firebase.ts");
+      alert("Erro ao salvar no Firestore.");
     } finally {
       setIsSaving(false);
     }
@@ -58,82 +57,84 @@ const CRM: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-lg font-bold text-white">Gestão de Carteira</h2>
-          <p className="text-sm text-gray-500">{companies.length} clientes ativos na base</p>
+          <h2 className="text-xl font-bold text-white tracking-tight">Gestão de Carteira</h2>
+          <p className="text-sm text-gray-500">{companies.length} clientes registrados</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-all"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center space-x-2 shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
         >
           <UserPlus size={18} />
-          <span>Cadastrar Cliente</span>
+          <span>Novo Cliente</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-500">
+        <div className="flex flex-col items-center justify-center py-24 text-gray-600">
           <Loader2 className="animate-spin mb-4" size={32} />
-          <p>Sincronizando com Firestore...</p>
+          <p className="text-sm font-medium">Sincronizando base de dados...</p>
         </div>
-      ) : (
-        <div className="bg-[#111827] border border-gray-800 rounded-2xl overflow-hidden">
+      ) : companies.length > 0 ? (
+        <div className="bg-[#111827] border border-gray-800 rounded-3xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-900/50 border-b border-gray-800">
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Empresa</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Plano</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Desde</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Campanhas</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                  <th className="px-6 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Empresa</th>
+                  <th className="px-6 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Plano Nexus</th>
+                  <th className="px-6 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Início do Contrato</th>
+                  <th className="px-6 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center">Campanhas</th>
+                  <th className="px-6 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Status</th>
+                  <th className="px-6 py-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody className="divide-y divide-gray-800/50">
                 {companies.map((company) => (
-                  <tr key={company.id} className="hover:bg-gray-800/20 transition-colors group">
-                    <td className="px-6 py-4">
+                  <tr key={company.id} className="hover:bg-gray-800/20 transition-all group">
+                    <td className="px-6 py-5">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-600/10 flex items-center justify-center text-indigo-500 font-bold mr-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-black mr-3 shadow-lg shadow-indigo-600/10">
                           {company.name.charAt(0)}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-white">{company.name}</div>
-                          <div className="text-xs text-gray-500">ID: {company.id.substring(0, 8)}...</div>
+                          <div className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors">{company.name}</div>
+                          <div className="text-[10px] text-gray-600 font-mono tracking-tighter">ID: {company.id}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        company.plan === 'Enterprise' ? 'bg-purple-500/10 text-purple-400' : 'bg-gray-800 text-gray-400'
+                    <td className="px-6 py-5">
+                      <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg border uppercase tracking-widest ${
+                        company.plan === 'Enterprise' ? 'border-purple-500/20 bg-purple-500/10 text-purple-400' : 
+                        company.plan === 'Pro' ? 'border-indigo-500/20 bg-indigo-500/10 text-indigo-400' :
+                        'border-gray-700 bg-gray-800 text-gray-500'
                       }`}>
                         {company.plan}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       <div className="flex items-center text-xs text-gray-400">
-                        <Calendar size={14} className="mr-2" />
+                        <Calendar size={14} className="mr-2 opacity-50" />
                         {new Date(company.startDate).toLocaleDateString('pt-BR')}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="text-sm font-semibold text-white">{company.activeCampaigns}</span>
+                    <td className="px-6 py-5 text-center">
+                      <span className="text-sm font-bold text-white">{company.activeCampaigns}</span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center text-xs font-medium text-emerald-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2"></span>
+                    <td className="px-6 py-5">
+                      <span className="inline-flex items-center text-[10px] font-black uppercase text-emerald-400 tracking-widest">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
                         Ativo
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button className="p-2 text-gray-500 hover:text-white transition-colors">
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end space-x-1">
+                        <button className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-all">
                           <Mail size={16} />
                         </button>
-                        <button className="p-2 text-gray-500 hover:text-indigo-400 transition-colors">
+                        <button className="p-2 text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all">
                           <ExternalLink size={16} />
                         </button>
-                        <button className="p-2 text-gray-500 hover:text-white">
+                        <button className="p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-all">
                           <MoreVertical size={16} />
                         </button>
                       </div>
@@ -144,50 +145,64 @@ const CRM: React.FC = () => {
             </table>
           </div>
         </div>
+      ) : (
+        <div className="bg-[#111827] border border-dashed border-gray-800 rounded-3xl p-20 flex flex-col items-center justify-center text-center">
+          <div className="w-20 h-20 bg-gray-900 rounded-full flex items-center justify-center mb-6 text-gray-700">
+            <Users size={40} />
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Sua base está vazia</h3>
+          <p className="text-gray-500 max-w-sm mb-8">Adicione seu primeiro cliente real para começar a estruturar a operação da sua agência no Nexus.</p>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all"
+          >
+            Cadastrar primeiro cliente
+          </button>
+        </div>
       )}
 
       {/* Modal de Cadastro */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
           <div className="bg-[#111827] border border-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-gray-800 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">Novo Cliente</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-white">
-                <X size={20} />
+            <div className="p-8 border-b border-gray-800 flex items-center justify-between bg-gray-900/50">
+              <h3 className="text-xl font-bold text-white">Novo Cliente Real</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-white transition-colors">
+                <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="p-8 space-y-6">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 tracking-wider">Nome da Empresa</label>
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest ml-1">Razão Social / Nome Fantasia</label>
                 <input 
                   required
                   type="text" 
                   value={newCompany.name}
                   onChange={e => setNewCompany({...newCompany, name: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white"
-                  placeholder="Ex: Loja de Roupas LTDA"
+                  className="w-full bg-gray-900 border border-gray-800 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white transition-all"
+                  placeholder="Ex: Apple Brasil LTDA"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 tracking-wider">Plano</label>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest ml-1">Plano Nexus</label>
                   <select 
                     value={newCompany.plan}
                     onChange={e => setNewCompany({...newCompany, plan: e.target.value as any})}
-                    className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white"
+                    className="w-full bg-gray-900 border border-gray-800 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white transition-all appearance-none"
                   >
-                    <option value="Basic">Basic</option>
-                    <option value="Pro">Pro</option>
-                    <option value="Enterprise">Enterprise</option>
+                    <option value="Basic">Basic (R$ 997/mês)</option>
+                    <option value="Pro">Pro (R$ 1.997/mês)</option>
+                    <option value="Enterprise">Enterprise (Custom)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5 tracking-wider">Data de Início</label>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest ml-1">Início da Gestão</label>
                   <input 
                     type="date" 
                     value={newCompany.startDate}
                     onChange={e => setNewCompany({...newCompany, startDate: e.target.value})}
-                    className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white"
+                    className="w-full bg-gray-900 border border-gray-800 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-white transition-all"
                   />
                 </div>
               </div>
@@ -195,9 +210,9 @@ const CRM: React.FC = () => {
                 <button 
                   disabled={isSaving}
                   type="submit" 
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-800 disabled:text-gray-500 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-800 disabled:text-gray-500 text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center space-x-2 shadow-xl shadow-indigo-600/20"
                 >
-                  {isSaving ? <Loader2 className="animate-spin" size={18} /> : <span>Confirmar Cadastro</span>}
+                  {isSaving ? <Loader2 className="animate-spin" size={20} /> : <span>Confirmar Cadastro Nexus</span>}
                 </button>
               </div>
             </form>
