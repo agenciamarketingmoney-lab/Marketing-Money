@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getAuth, Auth } from "firebase/auth";
@@ -12,23 +13,8 @@ const firebaseConfig = {
   measurementId: "G-TS5K8YP6T8"
 };
 
-// Singleton seguro
-const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Inicialização direta para garantir que erros de config apareçam no console
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const db: Firestore | null = (() => {
-  try {
-    return getFirestore(app);
-  } catch (e) {
-    console.error("Nexus DB: Erro ao inicializar Firestore.", e);
-    return null;
-  }
-})();
-
-export const auth: Auth | null = (() => {
-  try {
-    return getAuth(app);
-  } catch (e) {
-    console.error("Nexus Auth: Erro ao inicializar Auth.", e);
-    return null;
-  }
-})();
+export const db: Firestore = getFirestore(app);
+export const auth: Auth = getAuth(app);
