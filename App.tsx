@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { 
   LogOut, 
   Menu, 
@@ -8,7 +8,8 @@ import {
   Bell,
   Plus,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
 import { NAV_ITEMS } from './constants';
 import { User, UserRole } from './types';
@@ -28,50 +29,55 @@ const Sidebar: React.FC<{ user: User, isOpen: boolean, toggle: () => void, onLog
   return (
     <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0b0f1a] border-r border-gray-800 transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex flex-col h-full">
-        <div className="p-6 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white">N</div>
-            <span className="text-xl font-bold tracking-tight text-white">NEXUS</span>
+        <div className="p-8 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center font-black text-white shadow-xl shadow-indigo-600/20">N</div>
+            <div className="flex flex-col">
+              <span className="text-xl font-black tracking-tighter text-white leading-none">NEXUS</span>
+              <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mt-1">Intelligence</span>
+            </div>
           </div>
           <button onClick={toggle} className="lg:hidden text-gray-400 hover:text-white">
             <X size={20} />
           </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1 mt-4">
+        <nav className="flex-1 px-4 space-y-1.5 mt-6">
           {NAV_ITEMS.filter(item => item.roles.includes(user.role)).map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                onClick={() => { if(window.innerWidth < 1024) toggle(); }}
+                className={`flex items-center space-x-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
                   isActive 
-                  ? 'bg-indigo-600/10 text-indigo-400' 
-                  : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'
+                  ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/10' 
+                  : 'text-gray-500 hover:bg-gray-800/50 hover:text-gray-200'
                 }`}
               >
-                <span className={`${isActive ? 'text-indigo-500' : 'text-gray-500 group-hover:text-gray-300'}`}>
+                <span className={`${isActive ? 'text-indigo-500' : 'text-gray-600 group-hover:text-gray-400'}`}>
                   {item.icon}
                 </span>
-                <span className="font-medium">{item.label}</span>
+                <span className="font-bold text-sm tracking-tight">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-800">
-          <div className="flex items-center p-2 rounded-xl bg-gray-900/50">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold">
+        <div className="p-4 border-t border-gray-800/50">
+          <div className="flex items-center p-3 rounded-2xl bg-gray-900/40 border border-gray-800/50">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-black text-white shadow-lg">
               {user.name?.charAt(0) || 'U'}
             </div>
             <div className="ml-3 overflow-hidden">
-              <p className="text-sm font-semibold text-white truncate">{user.name || 'Usuário'}</p>
-              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">{user.role}</p>
+              <p className="text-sm font-bold text-white truncate leading-none mb-1">{user.name || 'Usuário'}</p>
+              <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest">{user.role}</p>
             </div>
             <button 
               onClick={onLogout}
-              className="ml-auto text-gray-500 hover:text-rose-400 p-2 transition-colors"
+              className="ml-auto text-gray-600 hover:text-rose-500 p-2 transition-colors"
+              title="Sair"
             >
               <LogOut size={18} />
             </button>
@@ -82,32 +88,45 @@ const Sidebar: React.FC<{ user: User, isOpen: boolean, toggle: () => void, onLog
   );
 };
 
-const Header: React.FC<{ title: string, toggleSidebar: () => void }> = ({ title, toggleSidebar }) => (
-  <header className="h-16 bg-[#030712]/80 backdrop-blur-md border-b border-gray-800 sticky top-0 z-40 flex items-center justify-between px-6">
-    <div className="flex items-center">
-      <button onClick={toggleSidebar} className="lg:hidden mr-4 text-gray-400 hover:text-white">
-        <Menu size={24} />
-      </button>
-      <h1 className="text-xl font-bold text-white">{title}</h1>
-    </div>
-    <div className="flex items-center space-x-4">
-      <button className="relative p-2 text-gray-400 hover:text-white transition-colors">
-        <Bell size={20} />
-        <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#030712]"></span>
-      </button>
-      <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-all">
-        <Plus size={18} />
-        <span className="hidden sm:inline">Ação Rápida</span>
-      </button>
-    </div>
-  </header>
-);
+const Header: React.FC<{ title: string, toggleSidebar: () => void }> = ({ title, toggleSidebar }) => {
+  const navigate = useNavigate();
+  return (
+    <header className="h-20 bg-[#030712]/80 backdrop-blur-xl border-b border-gray-800 sticky top-0 z-40 flex items-center justify-between px-8">
+      <div className="flex items-center">
+        <button onClick={toggleSidebar} className="lg:hidden mr-6 text-gray-400 hover:text-white bg-gray-900 p-2 rounded-xl border border-gray-800">
+          <Menu size={20} />
+        </button>
+        <h1 className="text-xl font-black text-white tracking-tight">{title}</h1>
+      </div>
+      <div className="flex items-center space-x-6">
+        <div className="hidden md:flex items-center space-x-1.5 px-4 py-2 bg-gray-900/50 border border-gray-800 rounded-full">
+           <Zap size={14} className="text-indigo-500" />
+           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nexus Pro Cloud</span>
+        </div>
+        
+        <div className="flex items-center space-x-3 border-l border-gray-800 pl-6">
+          <button className="relative p-2.5 bg-gray-900 border border-gray-800 text-gray-400 hover:text-indigo-400 rounded-xl transition-all">
+            <Bell size={18} />
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#030712]"></span>
+          </button>
+          <button 
+            onClick={() => navigate('/crm')}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center space-x-2 shadow-xl shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">Novo Cliente</span>
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+};
 
 const PageWrapper: React.FC<{ children: React.ReactNode, title: string, toggleSidebar: () => void }> = ({ children, title, toggleSidebar }) => {
   return (
     <>
       <Header title={title} toggleSidebar={toggleSidebar} />
-      <div className="p-6 max-w-7xl mx-auto w-full">
+      <div className="p-8 max-w-[1440px] mx-auto w-full">
         {children}
       </div>
     </>
@@ -126,13 +145,10 @@ const App: React.FC = () => {
     const unsubscribe = authService.subscribeToAuthChanges(async (fbUser) => {
       try {
         if (fbUser) {
-          // Busca perfil detalhado no Firestore
           const profile = await dbService.getUserProfile(fbUser.uid);
-          
           if (profile) {
             setCurrentUser(profile);
           } else {
-            // Caso seja o usuário de bypass ou primeiro login sem perfil ainda no Firestore
             setCurrentUser({
               id: fbUser.uid,
               name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Usuário Nexus',
@@ -160,19 +176,11 @@ const App: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center text-gray-500">
-        <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
-        <p className="text-sm font-medium tracking-widest uppercase animate-pulse">Sincronizando Nuvem Nexus...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center text-rose-400 p-6 text-center">
-        <AlertTriangle size={48} className="mb-4" />
-        <h2 className="text-xl font-bold mb-2">Erro de Sincronização</h2>
-        <p className="max-w-md opacity-80">{error}</p>
-        <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-gray-800 rounded-lg text-white font-bold hover:bg-gray-700 transition-colors">Tentar Novamente</button>
+        <div className="relative mb-8">
+           <div className="w-16 h-16 border-4 border-indigo-500/10 border-t-indigo-500 rounded-full animate-spin"></div>
+           <div className="absolute inset-0 flex items-center justify-center font-black text-indigo-500">N</div>
+        </div>
+        <p className="text-[10px] font-black tracking-[0.4em] uppercase text-indigo-400/50 animate-pulse">Sincronizando Nexus Core...</p>
       </div>
     );
   }
@@ -190,12 +198,12 @@ const App: React.FC = () => {
             <Sidebar user={currentUser} isOpen={isSidebarOpen} toggle={toggleSidebar} onLogout={handleLogout} />
             <main className="lg:ml-64 min-h-screen flex flex-col">
               <Routes>
-                <Route path="/" element={<PageWrapper title="Dashboard" toggleSidebar={toggleSidebar}><Dashboard user={currentUser} /></PageWrapper>} />
-                <Route path="/crm" element={<PageWrapper title="CRM & Clientes" toggleSidebar={toggleSidebar}><CRM /></PageWrapper>} />
-                <Route path="/kanban" element={<PageWrapper title="Gestão de Projetos" toggleSidebar={toggleSidebar}><KanbanBoard user={currentUser} /></PageWrapper>} />
-                <Route path="/campaigns" element={<PageWrapper title="Campanhas de Tráfego" toggleSidebar={toggleSidebar}><CampaignsPage /></PageWrapper>} />
+                <Route path="/" element={<PageWrapper title="Visão Estratégica" toggleSidebar={toggleSidebar}><Dashboard user={currentUser} /></PageWrapper>} />
+                <Route path="/crm" element={<PageWrapper title="Gestão de Clientes" toggleSidebar={toggleSidebar}><CRM /></PageWrapper>} />
+                <Route path="/kanban" element={<PageWrapper title="Cronograma Operacional" toggleSidebar={toggleSidebar}><KanbanBoard user={currentUser} /></PageWrapper>} />
+                <Route path="/campaigns" element={<PageWrapper title="Performance de Tráfego" toggleSidebar={toggleSidebar}><CampaignsPage /></PageWrapper>} />
                 <Route path="/login" element={<Navigate to="/" replace />} />
-                <Route path="*" element={<PageWrapper title="Em Breve" toggleSidebar={toggleSidebar}><div className="p-10 text-center text-gray-500">Módulo em desenvolvimento...</div></PageWrapper>} />
+                <Route path="*" element={<PageWrapper title="Configurações" toggleSidebar={toggleSidebar}><div className="p-20 text-center flex flex-col items-center"><Zap size={40} className="text-gray-800 mb-4" /><p className="text-gray-500 font-bold">Módulo de configurações avançadas em expansão.</p></div></PageWrapper>} />
               </Routes>
             </main>
           </>
