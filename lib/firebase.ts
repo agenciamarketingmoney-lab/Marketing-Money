@@ -1,6 +1,7 @@
+
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getAuth, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAGiddLIYXwso7GCbykvyom3nhmZ0cCWfU",
@@ -12,8 +13,23 @@ const firebaseConfig = {
   measurementId: "G-TS5K8YP6T8"
 };
 
-// Singleton pattern to ensure only one instance is created
+// Singleton pattern
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const db = getFirestore(app);
-export const auth = getAuth(app);
+export const db: Firestore | null = (() => {
+  try {
+    return getFirestore(app);
+  } catch (e) {
+    console.error("Nexus DB: Erro ao inicializar Firestore. Verifique se o serviço está ativo no painel Firebase.", e);
+    return null;
+  }
+})();
+
+export const auth: Auth | null = (() => {
+  try {
+    return getAuth(app);
+  } catch (e) {
+    console.error("Nexus Auth: Erro ao inicializar serviço de autenticação.", e);
+    return null;
+  }
+})();
