@@ -14,7 +14,8 @@ import {
   BarChart3,
   Database,
   Loader2,
-  Sparkles
+  Sparkles,
+  ShieldAlert
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -68,6 +69,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isDemo = !auth.currentUser;
 
@@ -102,15 +104,22 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 
   const handleSeed = async () => {
     if (isDemo) {
-      alert("Para popular o banco na nuvem, você precisa fazer um login REAL via e-mail/senha.");
+      alert("Você está no modo Demo (Alexandre). Para gravar no banco real, saia e entre com seu e-mail criado no Console do Firebase.");
       return;
     }
+    
     setIsSeeding(true);
+    setErrorMsg(null);
+    
     try {
       await dbService.seedDatabase();
       await fetchData();
     } catch (err: any) {
-      alert("Erro ao popular: " + err.message);
+      if (err.message.includes("permissions")) {
+        setErrorMsg("Faltam permissões no servidor. Vá no Firebase Console > Aba 'Regras' e mude para: allow read, write: if request.auth != null;");
+      } else {
+        setErrorMsg("Erro ao popular: " + err.message);
+      }
     } finally {
       setIsSeeding(false);
     }
@@ -135,10 +144,15 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
               <span className="text-[10px] font-black uppercase tracking-widest">Setup de Primeira Viagem</span>
             </div>
             <h3 className="text-xl font-bold text-white mb-1">Seu Banco de Dados está Vazio</h3>
-            <p className="text-sm text-gray-400 max-w-lg">
-              Detectamos que o seu projeto <b>marketing-money</b> não possui dados. 
+            <p className="text-sm text-gray-400 max-w-lg mb-4">
               Gostaria de carregar nossa base de demonstração para testar as métricas e a IA?
             </p>
+            {errorMsg && (
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl text-[10px] uppercase font-bold flex items-start space-x-2 max-w-md">
+                <ShieldAlert size={16} className="shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
           </div>
           <button 
             onClick={handleSeed}

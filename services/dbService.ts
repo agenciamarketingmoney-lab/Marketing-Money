@@ -14,13 +14,16 @@ import {
   updateDoc,
   writeBatch
 } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { Company, Task, Campaign, DailyMetrics, User, UserRole } from "../types";
 import { MOCK_COMPANIES, MOCK_CAMPAIGNS, MOCK_METRICS, MOCK_TASKS } from "./mockData";
 
 export const dbService = {
-  // Função para popular o banco do zero (Seed)
+  // Função para popular o banco do zero (Seed) vinculando ao usuário logado
   async seedDatabase() {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("Você precisa estar logado com um usuário REAL para popular o banco.");
+
     const batch = writeBatch(db);
     
     try {
@@ -43,17 +46,17 @@ export const dbService = {
         batch.set(ref, { ...met, companyId: 'c1' });
       }
 
-      // 4. Criar Usuário Admin Base
-      const adminRef = doc(db, "users", "u1");
-      batch.set(adminRef, {
-        name: 'Alexandre Silva',
-        email: 'alexandre@agencianexus.com',
+      // 4. Criar/Atualizar SEU Perfil de Admin (usando o SEU UID real)
+      const userRef = doc(db, "users", currentUser.uid);
+      batch.set(userRef, {
+        name: currentUser.displayName || 'Administrador Nexus',
+        email: currentUser.email,
         role: 'ADMIN',
         updatedAt: serverTimestamp()
       });
 
       await batch.commit();
-      console.log("Nexus: Banco de dados inicializado com sucesso!");
+      console.log("Nexus: Banco de dados inicializado com sucesso para o UID:", currentUser.uid);
       return true;
     } catch (e) {
       console.error("Erro ao popular banco:", e);
