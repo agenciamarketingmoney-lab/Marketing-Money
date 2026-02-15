@@ -9,41 +9,27 @@ import { dbService } from "./dbService";
 import { UserRole } from "../types";
 
 type AuthCallback = (user: any | null) => void;
-let bypassUser: any | null = null;
 let activeCallback: AuthCallback | null = null;
 
 export const authService = {
   async login(email: string, pass: string) {
-    // Bypass para demonstração rápida (Alexandre)
-    if (email === 'alexandre@agencianexus.com' && pass === 'demo123456') {
-      bypassUser = {
-        uid: 'u1',
-        email: 'alexandre@agencianexus.com',
-        displayName: 'Alexandre Silva',
-        isDemo: true
-      };
-      if (activeCallback) activeCallback(bypassUser);
-      return bypassUser;
-    }
-
     if (!auth) throw new Error("Serviço de autenticação não inicializado.");
 
     try {
-      bypassUser = null;
       const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const user = userCredential.user;
 
       // Sincroniza perfil no Firestore
       const profile = await dbService.getUserProfile(user.uid);
       if (!profile) {
+        // Se o usuário logou mas não tem perfil (ex: cadastrado direto no console), cria um perfil básico
         await dbService.createUserProfile({
           id: user.uid,
           name: user.displayName || email.split('@')[0],
           email: user.email || '',
-          role: UserRole.TEAM // Padrão para novos cadastros via login
+          role: UserRole.TEAM 
         });
       }
-
       return user;
     } catch (error: any) {
       console.error("Erro no login Firebase:", error.code);
@@ -53,7 +39,6 @@ export const authService = {
 
   async logout() {
     try {
-      bypassUser = null;
       if (auth) await signOut(auth);
       if (activeCallback) activeCallback(null);
     } catch (error) {
@@ -67,13 +52,9 @@ export const authService = {
     
     if (auth) {
       unsubscribeFirebase = onAuthStateChanged(auth, async (user) => {
-        if (!bypassUser) {
-          callback(user);
-        }
+        callback(user);
       });
     }
-
-    if (bypassUser) callback(bypassUser);
 
     return () => {
       unsubscribeFirebase();
