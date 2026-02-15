@@ -1,0 +1,63 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Função auxiliar para verificar se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Função para buscar o cargo do usuário no Firestore
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'ADMIN';
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (getUserData().role == 'ADMIN' || getUserData().role == 'MANAGER' || getUserData().role == 'TEAM');
+    }
+
+    // --- REGRAS POR COLEÇÃO ---
+
+    // Usuários: Cada um lê/edita o seu, Admin lê tudo
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if request.auth.uid == userId || isAdmin();
+    }
+
+    // Empresas (Clientes): Admin/Manager gerenciam, todos do time leem
+    match /companies/{companyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (getUserData().role == 'ADMIN' || getUserData().role == 'MANAGER');
+    }
+
+    // Campanhas e Métricas: Staff pode gerenciar, Clientes apenas leem
+    match /campaigns/{campaignId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+    
+    match /metrics/{metricId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+
+    // Tarefas (Kanban): Qualquer um da equipe (Staff) pode criar e editar
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isStaff();
+      allow delete: if isAdmin();
+    }
+    
+    // Fallback de segurança (bloqueia tudo que não foi explicitamente permitido)
+    match /{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

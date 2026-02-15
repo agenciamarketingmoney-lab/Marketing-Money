@@ -3,72 +3,75 @@ import {
   collection, 
   addDoc, 
   getDocs, 
+  getDoc,
+  doc,
+  setDoc,
   query, 
   where, 
   serverTimestamp,
   orderBy,
-  limit
+  limit,
+  updateDoc
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { Company, Task, Campaign, DailyMetrics } from "../types";
-
-// Chaves para o LocalStorage (Fallback)
-const LS_COMPANIES = 'nexus_local_companies';
+import { Company, Task, Campaign, DailyMetrics, User, UserRole } from "../types";
 
 export const dbService = {
-  // Empresas / Clientes
-  async addCompany(company: Omit<Company, 'id'>) {
-    // Se o DB não inicializou, vai direto pro local
-    if (!db) {
-      console.warn("Nexus: Banco de dados não disponível. Salvando localmente...");
-      const localData = JSON.parse(localStorage.getItem(LS_COMPANIES) || '[]');
-      const newLocal = { ...company, id: 'local_' + Date.now() };
-      localData.push(newLocal);
-      localStorage.setItem(LS_COMPANIES, JSON.stringify(localData));
-      return newLocal;
-    }
-
+  // Usuários (Gestão de Perfil)
+  async getUserProfile(uid: string): Promise<User | null> {
+    if (!db) return null;
     try {
-      const colRef = collection(db, "companies");
-      const docRef = await addDoc(colRef, {
-        ...company,
-        createdAt: serverTimestamp()
-      });
-      return { id: docRef.id, ...company };
-    } catch (e: any) {
-      console.warn("Firestore recusou salvamento, usando local...", e);
-      
-      const localData = JSON.parse(localStorage.getItem(LS_COMPANIES) || '[]');
-      const newLocal = { ...company, id: 'local_' + Date.now() };
-      localData.push(newLocal);
-      localStorage.setItem(LS_COMPANIES, JSON.stringify(localData));
-      
-      if (e.message?.includes("API has not been used") || e.message?.includes("permission-denied")) {
-        throw e;
+      const docRef = doc(db, "users", uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as User;
       }
-      return newLocal;
+      return null;
+    } catch (e) {
+      console.error("Erro ao buscar perfil:", e);
+      return null;
     }
   },
 
-  async getCompanies(): Promise<Company[]> {
-    if (!db) {
-      return JSON.parse(localStorage.getItem(LS_COMPANIES) || '[]');
+  async createUserProfile(user: User) {
+    if (!db) return;
+    try {
+      await setDoc(doc(db, "users", user.id), {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        companyId: user.companyId || null,
+        updatedAt: serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Erro ao criar perfil no Firestore:", e);
     }
+  },
 
+  // Empresas / Clientes
+  async addCompany(company: Omit<Company, 'id'>) {
+    if (!db) throw new Error("Firestore não inicializado");
+    const colRef = collection(db, "companies");
+    const docRef = await addDoc(colRef, {
+      ...company,
+      createdAt: serverTimestamp()
+    });
+    return { id: docRef.id, ...company };
+  },
+
+  async getCompanies(): Promise<Company[]> {
+    if (!db) return [];
     try {
       const colRef = collection(db, "companies");
       const q = query(colRef, orderBy("name", "asc"));
       const querySnapshot = await getDocs(q);
-      
-      const firestoreData = querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Company[];
-
-      const localData = JSON.parse(localStorage.getItem(LS_COMPANIES) || '[]');
-      return [...firestoreData, ...localData];
     } catch (e) {
-      return JSON.parse(localStorage.getItem(LS_COMPANIES) || '[]');
+      console.error("Erro ao buscar empresas:", e);
+      return [];
     }
   },
 
@@ -77,7 +80,7 @@ export const dbService = {
     if (!db) return [];
     try {
       const colRef = collection(db, "campaigns");
-      const q = companyId 
+      const q = companyId && companyId !== 'all'
         ? query(colRef, where("companyId", "==", companyId))
         : query(colRef);
       
@@ -87,40 +90,30 @@ export const dbService = {
         ...doc.data()
       })) as Campaign[];
     } catch (e) {
+      console.error("Erro ao buscar campanhas:", e);
       return [];
     }
   },
 
-  // Métricas
+  // Métricas de Performance
   async getMetrics(companyId?: string): Promise<DailyMetrics[]> {
-    if (!db) {
-      return this.getMockMetrics();
-    }
-
+    if (!db) return [];
     try {
       const colRef = collection(db, "metrics");
-      const q = companyId 
-        ? query(colRef, where("companyId", "==", companyId), orderBy("date", "desc"), limit(30))
-        : query(colRef, orderBy("date", "desc"), limit(100));
+      let q;
+      
+      if (companyId && companyId !== 'all') {
+        q = query(colRef, where("companyId", "==", companyId), orderBy("date", "asc"), limit(60));
+      } else {
+        q = query(colRef, orderBy("date", "asc"), limit(100));
+      }
       
       const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => doc.data() as DailyMetrics);
-      return data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      return querySnapshot.docs.map(doc => doc.data() as DailyMetrics);
     } catch (e) {
-      return this.getMockMetrics();
+      console.error("Erro ao buscar métricas:", e);
+      return [];
     }
-  },
-
-  getMockMetrics(): DailyMetrics[] {
-    return Array.from({ length: 7 }, (_, i) => ({
-      date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
-      spend: 100 + Math.random() * 50,
-      impressions: 5000,
-      clicks: 250,
-      leads: 12,
-      conversions: 2,
-      revenue: 600
-    })).reverse();
   },
 
   // Tarefas / Projetos
@@ -128,9 +121,9 @@ export const dbService = {
     if (!db) return [];
     try {
       const colRef = collection(db, "tasks");
-      const q = companyId 
-        ? query(colRef, where("companyId", "==", companyId))
-        : query(colRef);
+      const q = companyId && companyId !== 'all'
+        ? query(colRef, where("companyId", "==", companyId), orderBy("dueDate", "asc"))
+        : query(colRef, orderBy("dueDate", "asc"));
         
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => ({
@@ -138,22 +131,18 @@ export const dbService = {
         ...doc.data()
       })) as Task[];
     } catch (e) {
+      console.error("Erro ao buscar tarefas:", e);
       return [];
     }
   },
 
   async addTask(task: Omit<Task, 'id'>) {
-    if (!db) throw new Error("Database unavailable");
-    try {
-      const colRef = collection(db, "tasks");
-      const docRef = await addDoc(colRef, {
-        ...task,
-        createdAt: serverTimestamp()
-      });
-      return { id: docRef.id, ...task };
-    } catch (e) {
-      console.error("Erro ao adicionar task no Firestore:", e);
-      throw e;
-    }
+    if (!db) throw new Error("Firestore indisponível");
+    const colRef = collection(db, "tasks");
+    const docRef = await addDoc(colRef, {
+      ...task,
+      createdAt: serverTimestamp()
+    });
+    return { id: docRef.id, ...task };
   }
 };

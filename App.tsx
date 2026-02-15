@@ -13,6 +13,7 @@ import {
 import { NAV_ITEMS } from './constants';
 import { User, UserRole } from './types';
 import { authService } from './services/authService';
+import { dbService } from './services/dbService';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -122,38 +123,34 @@ const App: React.FC = () => {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   useEffect(() => {
-    // Timeout de segurança
-    const safetyTimeout = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-      }
-    }, 8000);
-
-    try {
-      const unsubscribe = authService.subscribeToAuthChanges((user) => {
-        clearTimeout(safetyTimeout);
-        if (user) {
-          setCurrentUser({
-            id: user.uid,
-            name: user.displayName || user.email?.split('@')[0] || 'Alexandre Silva',
-            email: user.email || '',
-            role: user.email === 'alexandre@agencianexus.com' ? UserRole.ADMIN : UserRole.CLIENT
-          });
+    const unsubscribe = authService.subscribeToAuthChanges(async (fbUser) => {
+      try {
+        if (fbUser) {
+          // Busca perfil detalhado no Firestore
+          const profile = await dbService.getUserProfile(fbUser.uid);
+          
+          if (profile) {
+            setCurrentUser(profile);
+          } else {
+            // Caso seja o usuário de bypass ou primeiro login sem perfil ainda no Firestore
+            setCurrentUser({
+              id: fbUser.uid,
+              name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Usuário Nexus',
+              email: fbUser.email || '',
+              role: fbUser.email === 'alexandre@agencianexus.com' ? UserRole.ADMIN : UserRole.TEAM
+            });
+          }
         } else {
           setCurrentUser(null);
         }
+      } catch (err) {
+        console.error("Erro ao sincronizar usuário:", err);
+      } finally {
         setLoading(false);
-      });
+      }
+    });
 
-      return () => {
-        unsubscribe();
-        clearTimeout(safetyTimeout);
-      };
-    } catch (err) {
-      setError("Falha na conexão com o servidor de autenticação.");
-      setLoading(false);
-      clearTimeout(safetyTimeout);
-    }
+    return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -164,7 +161,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center text-gray-500">
         <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
-        <p className="text-sm font-medium tracking-widest uppercase animate-pulse">Sincronizando Nexus...</p>
+        <p className="text-sm font-medium tracking-widest uppercase animate-pulse">Sincronizando Nuvem Nexus...</p>
       </div>
     );
   }
@@ -173,14 +170,9 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#030712] flex flex-col items-center justify-center text-rose-400 p-6 text-center">
         <AlertTriangle size={48} className="mb-4" />
-        <h2 className="text-xl font-bold mb-2">Erro Crítico</h2>
+        <h2 className="text-xl font-bold mb-2">Erro de Sincronização</h2>
         <p className="max-w-md opacity-80">{error}</p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="mt-6 px-6 py-2 bg-gray-800 rounded-lg text-white font-bold hover:bg-gray-700 transition-colors"
-        >
-          Tentar Novamente
-        </button>
+        <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-gray-800 rounded-lg text-white font-bold hover:bg-gray-700 transition-colors">Tentar Novamente</button>
       </div>
     );
   }
@@ -195,12 +187,7 @@ const App: React.FC = () => {
           </Routes>
         ) : (
           <>
-            <Sidebar 
-              user={currentUser} 
-              isOpen={isSidebarOpen} 
-              toggle={toggleSidebar} 
-              onLogout={handleLogout}
-            />
+            <Sidebar user={currentUser} isOpen={isSidebarOpen} toggle={toggleSidebar} onLogout={handleLogout} />
             <main className="lg:ml-64 min-h-screen flex flex-col">
               <Routes>
                 <Route path="/" element={<PageWrapper title="Dashboard" toggleSidebar={toggleSidebar}><Dashboard user={currentUser} /></PageWrapper>} />
