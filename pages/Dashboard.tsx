@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
-  TrendingDown, 
   Users, 
   Target, 
   DollarSign, 
@@ -27,10 +26,10 @@ import { User, AIInsight, Company, DailyMetrics, UserRole } from '../types';
 import { dbService } from '../services/dbService';
 import { generateMarketingInsights } from '../services/geminiService';
 
-const StatCard = ({ title, value, change, suffix = "", icon: Icon }: any) => (
-  <div className="bg-[#111827] border border-gray-800 rounded-[2rem] p-8 hover:border-indigo-500/50 transition-all duration-300 group shadow-lg">
+const StatCard = ({ title, value, suffix = "", icon: Icon }: any) => (
+  <div className="bg-[#111827] border border-gray-800 rounded-[2rem] p-8 hover:border-emerald-500/50 transition-all duration-300 group shadow-lg">
     <div className="flex items-center justify-between mb-6">
-      <div className="p-3 bg-indigo-600/10 rounded-2xl text-indigo-500 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+      <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500 group-hover:bg-emerald-500 group-hover:text-gray-950 transition-all">
         <Icon size={24} />
       </div>
     </div>
@@ -43,9 +42,10 @@ const StatCard = ({ title, value, change, suffix = "", icon: Icon }: any) => (
 );
 
 const Dashboard: React.FC<{ user: User }> = ({ user }) => {
+  const isClient = user.role === UserRole.CLIENT;
   const [companies, setCompanies] = useState<Company[]>([]);
-  const initialCompany = user.role === UserRole.CLIENT ? user.companyId : 'all';
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(initialCompany || 'all');
+  // Se for cliente, o ID é fixo. Se for equipe, o padrão é 'all'
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(isClient ? (user.companyId || '') : 'all');
   
   const [metrics, setMetrics] = useState<DailyMetrics[]>([]);
   const [insights, setInsights] = useState<AIInsight | null>(null);
@@ -55,11 +55,16 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const companiesData = await dbService.getCompanies(user);
-      setCompanies(companiesData);
+      // Carrega empresas apenas se for equipe da agência
+      if (!isClient) {
+        const comps = await dbService.getCompanies();
+        setCompanies(comps);
+      } else if (!selectedCompanyId && user.companyId) {
+        setSelectedCompanyId(user.companyId);
+      }
       
-      const companyFilter = selectedCompanyId === 'all' ? undefined : selectedCompanyId;
-      const metricsData = await dbService.getMetrics(companyFilter);
+      const filter = selectedCompanyId === 'all' ? undefined : selectedCompanyId;
+      const metricsData = await dbService.getMetrics(filter);
       setMetrics(metricsData);
 
       if (metricsData.length > 0) {
@@ -71,7 +76,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
         setInsights(null);
       }
     } catch (err) {
-      console.error("Erro no Dashboard:", err);
+      console.error("Dashboard Error:", err);
     } finally {
       setLoading(false);
     }
@@ -79,9 +84,9 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 
   useEffect(() => { fetchData(); }, [selectedCompanyId]);
 
-  const totalSpend = metrics.reduce((acc, m) => acc + m.spend, 0);
-  const totalLeads = metrics.reduce((acc, m) => acc + m.leads, 0);
-  const totalRevenue = metrics.reduce((acc, m) => acc + m.revenue, 0);
+  const totalSpend = metrics.reduce((acc, m) => acc + (m.spend || 0), 0);
+  const totalLeads = metrics.reduce((acc, m) => acc + (m.leads || 0), 0);
+  const totalRevenue = metrics.reduce((acc, m) => acc + (m.revenue || 0), 0);
   const roas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
 
   return (
@@ -89,37 +94,30 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black text-white tracking-tight flex items-center uppercase">
-            {selectedCompanyId === 'all' ? 'VISÃO ESTRATÉGICA' : companies.find(c => c.id === selectedCompanyId)?.name}
+            {isClient ? 'MEUS RESULTADOS' : (selectedCompanyId === 'all' ? 'VISÃO GERAL AGÊNCIA' : companies.find(c => c.id === selectedCompanyId)?.name)}
           </h2>
-          <p className="text-sm text-gray-500 mt-1">Inteligência de performance em tempo real</p>
+          <p className="text-sm text-gray-500 mt-1">Dados reais de performance extraídos via Marketing Money API</p>
         </div>
 
         <div className="flex items-center space-x-3">
-          <button onClick={fetchData} className="p-3 bg-gray-900 border border-gray-800 text-gray-500 hover:text-white rounded-2xl transition-all active:scale-95 shadow-xl">
-            <RefreshCcw size={18} className={loading ? "animate-spin text-indigo-500" : ""} />
+          <button onClick={fetchData} className="p-3 bg-gray-900 border border-gray-800 text-gray-500 hover:text-white rounded-2xl transition-all shadow-xl">
+            <RefreshCcw size={18} className={loading ? "animate-spin text-emerald-500" : ""} />
           </button>
           
-          <div className="relative">
-            {user.role === UserRole.CLIENT ? (
-              <div className="bg-gray-900/50 border border-gray-800 text-gray-500 text-[10px] font-black uppercase px-5 py-3.5 rounded-2xl flex items-center space-x-2 tracking-widest shadow-xl">
-                <Lock size={14} className="text-indigo-500" />
-                <span>Minha Conta</span>
-              </div>
-            ) : (
-              <>
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={16} />
-                <select 
-                  value={selectedCompanyId}
-                  onChange={(e) => setSelectedCompanyId(e.target.value)}
-                  className="bg-[#111827] border border-gray-800 text-white text-xs font-black uppercase tracking-widest rounded-2xl pl-12 pr-10 py-3.5 appearance-none outline-none cursor-pointer min-w-[260px] shadow-2xl focus:ring-2 focus:ring-indigo-500/30 transition-all"
-                >
-                  <option value="all">TODOS OS CLIENTES</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" size={16} />
-              </>
-            )}
-          </div>
+          {!isClient && (
+            <div className="relative">
+              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" size={16} />
+              <select 
+                value={selectedCompanyId}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
+                className="bg-[#111827] border border-gray-800 text-white text-xs font-black uppercase tracking-widest rounded-2xl pl-12 pr-10 py-3.5 appearance-none outline-none cursor-pointer min-w-[260px] shadow-2xl focus:ring-2 focus:ring-emerald-500/30 transition-all"
+              >
+                <option value="all">TODOS OS CLIENTES</option>
+                {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" size={16} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -132,13 +130,10 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-[#111827] border border-gray-800 rounded-[3rem] p-10 shadow-2xl overflow-hidden relative group">
-          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-            <BarChart3 size={120} />
-          </div>
           <div className="relative z-10 h-[420px] w-full">
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center space-y-4">
-                <Loader2 className="animate-spin text-indigo-500" size={40} />
+                <Loader2 className="animate-spin text-emerald-500" size={40} />
                 <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Sincronizando BI...</span>
               </div>
             ) : metrics.length > 0 ? (
@@ -146,15 +141,15 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
                 <AreaChart data={metrics}>
                   <defs>
                     <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1f2937" opacity={0.3} />
                   <XAxis dataKey="date" hide />
                   <YAxis hide />
                   <Tooltip contentStyle={{ backgroundColor: '#0b0f1a', border: '1px solid #1f2937', borderRadius: '1.5rem', fontSize: '12px' }} />
-                  <Area type="monotone" dataKey="spend" stroke="#6366f1" fill="url(#colorSpend)" strokeWidth={4} animationDuration={2000} />
+                  <Area type="monotone" dataKey="spend" stroke="#10b981" fill="url(#colorSpend)" strokeWidth={4} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -163,7 +158,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
                     <BarChart3 size={32} />
                  </div>
                  <h4 className="text-white font-black uppercase tracking-widest text-sm mb-2">Sem dados de tráfego</h4>
-                 <p className="text-gray-600 text-[10px] font-bold uppercase max-w-[200px]">Aguardando conexão com as plataformas de anúncios.</p>
+                 <p className="text-gray-600 text-[10px] font-bold uppercase max-w-[200px]">Os dados deste cliente ainda não foram integrados ao painel.</p>
               </div>
             )}
           </div>
@@ -171,33 +166,26 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 
         <div className="bg-[#111827] border border-gray-800 rounded-[3rem] p-10 flex flex-col relative overflow-hidden shadow-2xl">
           <div className="flex items-center space-x-4 mb-10">
-            <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+            <div className="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center text-gray-950 shadow-lg shadow-emerald-500/30">
               <Lightbulb size={28} />
             </div>
             <div>
-              <h3 className="text-xl font-black text-white leading-none uppercase">Nexus AI</h3>
-              <p className="text-[9px] text-indigo-400 font-black uppercase tracking-[0.2em] mt-2">Machine Learning</p>
+              <h3 className="text-xl font-black text-white leading-none uppercase">Money AI</h3>
+              <p className="text-[9px] text-emerald-400 font-black uppercase tracking-[0.2em] mt-2">Machine Learning</p>
             </div>
           </div>
           
           <div className="flex-1 space-y-6">
             {insights ? (
               <div className="space-y-6 animate-in slide-in-from-bottom duration-1000">
-                 <p className="text-sm text-gray-400 leading-relaxed font-medium italic border-l-4 border-indigo-600 pl-6 py-2">
+                 <p className="text-sm text-gray-400 leading-relaxed font-medium italic border-l-4 border-emerald-500 pl-6 py-2">
                    "{insights.summary}"
                  </p>
-                 <div className="space-y-4">
-                    {insights.alerts.slice(0, 2).map((alert, i) => (
-                      <div key={i} className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl text-[11px] text-rose-400 font-bold uppercase tracking-wide">
-                        ⚠️ {alert}
-                      </div>
-                    ))}
-                 </div>
               </div>
             ) : (
               <div className="py-10 text-center">
                 <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest leading-relaxed">
-                  {loadingInsights ? "Analisando variáveis de performance..." : "Cadastre métricas reais para ativar os insights de IA."}
+                  {loadingInsights ? "Analisando variáveis..." : "Aguardando dados reais para gerar insights estratégicos."}
                 </p>
               </div>
             )}
